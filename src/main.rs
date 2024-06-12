@@ -15,7 +15,7 @@ mod circuit_config;
 /// Universal PLONK gate.
 mod gate;
 
-/// Simple addition relation expressing: `a + b = c`, where:
+/// Simple addition relation expressing: `a * b = c`, where:
 /// - `a` is private input (aka advice, aka witness)
 /// - `b` is public input (aka instance)
 /// - `c` is constant (aka fixed)
@@ -43,7 +43,7 @@ impl Circuit<Fr> for SimpleRelation {
     fn configure(meta: &mut ConstraintSystem<Fr>) -> Self::Config {
         // ====== Columns ======
         let config = StandardPlonkConfig::new(meta);
-        // ====== Gates   ======
+        // ====== Gates ======
         create_universal_plonk_gate(meta, &config);
 
         config
@@ -55,20 +55,22 @@ impl Circuit<Fr> for SimpleRelation {
         mut layouter: impl Layouter<Fr>,
     ) -> Result<(), Error> {
         layouter.assign_region(
-            || "first row",
+            || "mul",
             |mut region| {
                 region.assign_advice(
                     || "assign `a` as the left input",
-                    config.left_input,
+                    config.input,
                     0,
                     || Value::known(self.a),
                 )?;
+
                 region.assign_fixed(
-                    || "turn on selector for the left input",
-                    config.q_left,
+                    || "turn on selector for the product",
+                    config.q_product,
                     0,
                     || Value::known(Fr::one()),
                 )?;
+
                 region.assign_fixed(
                     || "assign constant result",
                     config.constant,
@@ -88,7 +90,7 @@ fn main() {
     let relation_instance = SimpleRelation {
         a: Fr::from(2),
         b: Fr::from(3),
-        c: Fr::from(5),
+        c: Fr::from(6),
     };
 
     MockProver::run(3, &relation_instance, vec![vec![relation_instance.b]])
