@@ -57,6 +57,9 @@ impl Circuit<Fr> for SimpleRelation {
         layouter.assign_region(
             || "mul",
             |mut region| {
+                // row | advice_0 (a) | fixed_0 (selector) | fixed_1 (c) | instance (b) |
+                // 0   | 2            | 1                  |  6          | 3            |
+
                 region.assign_advice(
                     || "assign `a` as the left input",
                     config.input,

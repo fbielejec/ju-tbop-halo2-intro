@@ -3,7 +3,7 @@ use halo2_proofs::arithmetic::Field;
 use halo2_proofs::plonk::ConstraintSystem;
 use halo2_proofs::poly::Rotation;
 
-/// Register the universal gate in the constraint system using registered columns.
+/// Register the gate in the constraint system using registered columns.
 pub fn create_universal_plonk_gate<Fr: Field>(
     meta: &mut ConstraintSystem<Fr>,
     config: &StandardPlonkConfig,
