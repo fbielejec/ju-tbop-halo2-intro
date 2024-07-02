@@ -1,5 +1,5 @@
 use halo2_proofs::arithmetic::Field;
-use halo2_proofs::plonk::{Advice, Column, ConstraintSystem, Fixed, Instance, Selector};
+use halo2_proofs::plonk::{Advice, Column, ConstraintSystem, Instance, Selector};
 
 /// Standard Plonk circuit column set.
 #[derive(Copy, Clone)]

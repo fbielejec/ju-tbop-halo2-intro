@@ -1,4 +1,4 @@
-use halo2_proofs::circuit::{AssignedCell, Layouter, SimpleFloorPlanner, Value};
+use halo2_proofs::circuit::{AssignedCell, Layouter, SimpleFloorPlanner};
 use halo2_proofs::dev::MockProver;
 use halo2_proofs::plonk::{Circuit, ConstraintSystem, Error};
 use halo2curves::bn256::Fr;
@@ -15,7 +15,7 @@ mod gate;
 #[derive(Default)]
 struct FibonacciCircuit {}
 
-// TODO
+#[allow(clippy::type_complexity)]
 impl FibonacciCircuit {
     pub fn assign_row_zero(
         &self,
@@ -29,18 +29,18 @@ impl FibonacciCircuit {
         ),
         Error,
     > {
-        // | row  | a | b | c | instance |
-        // | 0    | 1 | 1 | 2 | 1        |
+        // | row  | a | b | c | instance | selector
+        // | 0    | 1 | 1 | 2 | 1        | 1
         // | 1    | 1 | 2 | 3 | 1        |
-        // |      |   |   |   | 55       |
 
         layouter.assign_region(
             || "row 0",
             |mut region| {
+                // turn on the selector at the given offset for this region
                 config.selector.enable(&mut region, 0)?;
 
                 let a_cell = region.assign_advice_from_instance(
-                    || "fib(0) = 1",
+                    || "a",
                     config.instance,
                     0, // row where the instance is (public input)
                     config.col_a,
@@ -48,7 +48,7 @@ impl FibonacciCircuit {
                 )?;
 
                 let b_cell = region.assign_advice_from_instance(
-                    || "fib(1) = 1",
+                    || "b",
                     config.instance,
                     1, // row where the next instance is
                     config.col_b,
@@ -56,10 +56,10 @@ impl FibonacciCircuit {
                 )?;
 
                 let c_cell = region.assign_advice(
-                    || "fib(3) = f(0) + f(1)",
+                    || "a + b = c",
                     config.col_c,
                     0,
-                    || a_cell.value() + b_cell.value(),
+                    || a_cell.value().copied() + b_cell.value(),
                 )?;
 
                 Ok((a_cell, b_cell, c_cell))
@@ -70,9 +70,53 @@ impl FibonacciCircuit {
     pub fn assign_row(
         &self,
         mut layouter: impl Layouter<Fr>,
+        prev_b: &AssignedCell<Fr, Fr>,
+        prev_c: &AssignedCell<Fr, Fr>,
         config: &FibonacciConfig,
     ) -> Result<AssignedCell<Fr, Fr>, Error> {
-        todo!("")
+        // | row  | a | b | c |
+        // | 0    | 1 | 1 | 2 |
+        // | 1    | 1 | 2 | 3 |
+        // | 2    | 2 | 3 | 5 |
+        // | 3    | 3 | 5 | 8 |
+
+        layouter.assign_region(
+            || "next row",
+            |mut region| {
+                // turn on the selector at the given offset for this region
+                config.selector.enable(&mut region, 0)?;
+
+                // Copy the value from b & c in previous row to a & b in current row
+
+                prev_b.copy_advice(|| "a", &mut region, config.col_a, 0)?;
+
+                prev_c.copy_advice(|| "b", &mut region, config.col_b, 0)?;
+
+                let c_cell = region.assign_advice(
+                    || "a + b = c",
+                    config.col_c,
+                    0,
+                    || prev_b.value().copied() + prev_c.value(),
+                )?;
+
+                Ok(c_cell)
+            },
+        )
+    }
+
+    pub fn expose_public(
+        &self,
+        mut layouter: impl Layouter<Fr>,
+        cell: &AssignedCell<Fr, Fr>,
+        config: &FibonacciConfig,
+    ) -> Result<(), Error> {
+        //
+        // | row  | advice_3 (c) | instance |
+        // | 0    |              | 1        |
+        // | 1    |              | 1        |
+        // | 2    | f(9)         | 55       |
+
+        layouter.constrain_instance(cell.cell(), config.instance, 2)
     }
 }
 
@@ -101,7 +145,17 @@ impl Circuit<Fr> for FibonacciCircuit {
         config: Self::Config,
         mut layouter: impl Layouter<Fr>,
     ) -> Result<(), Error> {
-        self.assign_row_zero(layouter.namespace(|| "row 0"), &config)?;
+        let (_, mut prev_b, mut prev_c) =
+            self.assign_row_zero(layouter.namespace(|| "row 0"), &config)?;
+
+        for _i in 3..10 {
+            let c_cell =
+                self.assign_row(layouter.namespace(|| "next row"), &prev_b, &prev_c, &config)?;
+            prev_b = prev_c;
+            prev_c = c_cell;
+        }
+
+        self.expose_public(layouter.namespace(|| "out"), &prev_c, &config)?;
 
         Ok(())
     }
