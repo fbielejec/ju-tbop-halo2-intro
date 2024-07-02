@@ -9,25 +9,7 @@ pub struct FibonacciConfig {
     pub col_b: Column<Advice>,
     pub col_c: Column<Advice>,
 
-    // /// Column for the left input to a gate.
-    // pub left_input: Column<Advice>,
-    // /// Column for the right input to a gate.
-    // pub right_input: Column<Advice>,
-    // /// Column for the output of a gate.
-    // pub output: Column<Advice>,
-
     // ======= COLUMNS FOR VALUES THAT ARE FIXED FOREVER AND PUBLICLY KNOWN ========================
-
-    // /// Selector for the left input to a gate.
-    // pub q_left: Column<Fixed>,
-    // /// Selector for the right input to a gate.
-    // pub q_right: Column<Fixed>,
-    // /// Selector for the output of a gate.
-    // pub q_output: Column<Fixed>,
-    // /// Selector for the product of the left and right inputs to a gate.
-    // pub q_product: Column<Fixed>,
-    // /// Column for fixed constants.
-    // pub constant: Column<Fixed>,
     pub selector: Selector,
 
     // ======= COLUMNS FOR VALUES THAT ARE FIXED FOR A SINGLE PROVER-VERIFIER INTERACTION AND ARE
